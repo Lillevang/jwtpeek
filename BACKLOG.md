@@ -10,6 +10,5 @@
   - PPA or hosted apt repo
 
 - Quality of life
-  - --version
   - --no-color
   - configurable expiry-soon threshold

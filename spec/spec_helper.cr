@@ -1,3 +1,5 @@
 require "spec"
 require "../src/jwt"
 require "../src/output"
+require "../src/update_checker"
+require "../src/version"
