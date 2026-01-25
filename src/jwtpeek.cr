@@ -35,8 +35,13 @@ begin
   text = Clipboard.read
   raise "Clipboard is empty" if text.strip.empty?
 
-  token = JWT.extract(text)
-  header, payload, signature = JWT.decode(token)
+  extraction = JWT.extract(text)
+  if extraction.total > 1
+    detail = extraction.bearer ? "using Bearer token" : "using first"
+    STDERR.puts("ℹ found #{extraction.total} JWTs in clipboard, #{detail}")
+  end
+
+  header, payload, signature = JWT.decode(extraction.token)
 
   Output.print(header, payload, signature)
 
