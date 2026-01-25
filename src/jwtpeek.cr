@@ -10,6 +10,8 @@ require "./version"
 copy = false
 check_update = false
 show_version = false
+verify_hs256 = false
+verify_pem_path : String? = nil
 
 OptionParser.parse do |parser|
   parser.banner = "Usage: jwtpeek [options]"
@@ -24,6 +26,14 @@ OptionParser.parse do |parser|
 
   parser.on("--check-update", "Check for updates") do
     check_update = true
+  end
+
+  parser.on("--verify-hs256", "Verify HS256 signature with JWTPEEK_HS256_SECRET") do
+    verify_hs256 = true
+  end
+
+  parser.on("--verify-pem PEM", "Verify RS256/ES256 signature with PEM public key") do |pem|
+    verify_pem_path = pem
   end
 
   parser.on("-h", "--help", "Show this help") do
@@ -66,6 +76,9 @@ end
 
 
 begin
+  if verify_hs256 && verify_pem_path
+    raise "Choose only one verification mode"
+  end
 
   text = Clipboard.read
   raise "Clipboard is empty" if text.strip.empty?
@@ -80,6 +93,29 @@ begin
   header, payload, signature = JWT.decode(extraction.token)
 
   Output.print(header, payload, signature)
+
+  if verify_hs256 || verify_pem_path
+    alg = header["alg"]?.try(&.as_s?)
+    raise "Missing alg in JWT header" unless alg
+
+    if verify_hs256
+      raise "JWT alg is #{alg}, but --verify-hs256 requires HS256" unless alg == "HS256"
+      secret = ENV["JWTPEEK_HS256_SECRET"]?
+      raise "JWTPEEK_HS256_SECRET is not set" unless secret
+      valid = JWT.verify_hs256(extraction.token, secret)
+    else
+      raise "JWT alg is #{alg}, but --verify-pem requires RS256 or ES256" unless alg == "RS256" || alg == "ES256"
+      pem = File.read(verify_pem_path.not_nil!)
+      valid = JWT.verify_pem(extraction.token, pem, alg)
+    end
+
+    if valid
+      STDERR.puts("✔ signature valid")
+    else
+      STDERR.puts("✗ signature invalid")
+      exit 1
+    end
+  end
 
   status, msg = Output.expiry_status(payload)
   case status
