@@ -1,0 +1,42 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-linux-x86_64:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Crystal
+        uses: crystal-lang/install-crystal@v1
+        with:
+          crystal: latest
+
+      - name: Build
+        run: |
+          crystal build src/jwtpeek.cr --release
+          sha256sum jwtpeek > jwtpeek.sha256
+
+          # Publish the same binary under two common arch names
+          cp jwtpeek jwtpeek-linux-amd64
+          cp jwtpeek jwtpeek-linux-x86_64
+
+          sha256sum jwtpeek-linux-amd64 > jwtpeek-linux-amd64.sha256
+          sha256sum jwtpeek-linux-x86_64 > jwtpeek-linux-x86_64.sha256
+
+      - name: Create GitHub Release and upload assets
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            jwtpeek-linux-amd64
+            jwtpeek-linux-amd64.sha256
+            jwtpeek-linux-x86_64
+            jwtpeek-linux-x86_64.sha256
