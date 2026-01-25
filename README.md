@@ -90,8 +90,6 @@ bytes: 32 (not verified)
 ## Roadmap (rough)
 
 - Signature verification (HS256 / RS256 / ES256 / etc)
-- Multiple-token selection improvements
-- Prebuilt binaries via GitHub Releases
 
 ## License
 
