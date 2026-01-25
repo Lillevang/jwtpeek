@@ -4,7 +4,11 @@ require "./spec_helper"
 describe JWT do
   it "extracts a JWT token from text" do
     text = "prefix abc.def.ghi suffix"
-    JWT.extract(text).should eq("abc.def.ghi")
+    extraction = JWT.extract(text)
+
+    extraction.token.should eq("abc.def.ghi")
+    extraction.total.should eq(1)
+    extraction.bearer.should be_false
   end
 
   it "raises when no JWT is present" do
@@ -12,6 +16,25 @@ describe JWT do
       JWT.extract("no token here")
     end
   end
+
+  it "prefers a Bearer token when present" do
+    text = "Authorization: Bearer aaa.bbb.ccc and also abc.def.ghi"
+    extraction = JWT.extract(text)
+
+    extraction.token.should eq("aaa.bbb.ccc")
+    extraction.total.should eq(2)
+    extraction.bearer.should be_true
+  end
+
+  it "prefers a Bearer token when present after another token" do
+    text = "abc.def.ghi and also Authorization: Bearer aaa.bbb.ccc"
+    extraction = JWT.extract(text)
+
+    extraction.token.should eq("aaa.bbb.ccc")
+    extraction.total.should eq(2)
+    extraction.bearer.should be_true
+  end
+
 
   it "decodes a JWT into header, payload, and signature bytes" do
     header_json = %({"alg":"HS256","typ":"JWT"})
