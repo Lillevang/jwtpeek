@@ -39,9 +39,10 @@ end
 if check_update
   begin
     result = Jwtpeek::UpdateChecker.check
-    puts Jwtpeek::UpdateChecker.message(result)
+    Jwtpeek::UpdateChecker.message(result)
   rescue ex
-    puts "Unable to check for updates: #{ex.message}"
+    STDERR.puts "/home/jls/repos/tools/jwtpeek/src: 1: q: not found
+/home/jls/repos/tools/jwtpeek/src: 1: q: not foundUnable to check for updates: #{ex.message}"
   end
   exit
 end

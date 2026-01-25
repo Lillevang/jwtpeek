@@ -1,3 +1,4 @@
+require "colorize"
 require "http/client"
 require "json"
 
@@ -10,18 +11,27 @@ module Jwtpeek
     record Result, latest : String, comparison : Int32
 
     def self.check(client = HTTP::Client) : Result
-      response = client.get(API_URL)
+      headers = HTTP::Headers{
+        "User-Agent" => "jwtpeek/#{VERSION}",
+        "Accept"     => "application/vnd.github+json"
+      }
+
+      response = client.get(API_URL, headers: headers)
+      unless response.status.success?
+        raise "GitHub API returned #{response.status_code}"
+      end
+
       data = JSON.parse(response.body)
       tag = data["tag_name"].as_s
       latest = normalize_version(tag)
       Result.new(latest, compare_versions(VERSION, latest))
     end
 
-    def self.message(result : Result) : String
+    def self.message(result : Result)
       if result.comparison < 0
-        "Update available: v#{result.latest} (current v#{VERSION})."
+        puts "Update available: v#{result.latest} (current v#{VERSION}).".colorize(:yellow)
       else
-        "You're up to date (v#{VERSION})."
+        puts "You're up to date (v#{VERSION}).".colorize(:green)
       end
     end
 

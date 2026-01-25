@@ -15,6 +15,24 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Verify VERSION matches git tag
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          TAG="${GITHUB_REF_NAME}"   # e.g. v0.1.2
+          TAG_VER="${TAG#v}"         # 0.1.2
+
+          FILE_VER="$(grep -Eo 'VERSION\s*=\s*"[^"]+"' src/version.cr | sed -E 's/.*"([^"]+)".*/\1/')"
+
+          echo "Tag version:  ${TAG_VER}"
+          echo "File version: ${FILE_VER}"
+
+          if [ "${TAG_VER}" != "${FILE_VER}" ]; then
+            echo "ERROR: tag (${TAG_VER}) does not match src/version.cr (${FILE_VER})"
+            exit 1
+          fi
+
       - name: Install Crystal
         uses: crystal-lang/install-crystal@v1
         with:
@@ -22,6 +40,8 @@ jobs:
 
       - name: Build
         run: |
+          set -euo pipefail
+
           crystal build src/jwtpeek.cr --release
           sha256sum jwtpeek > jwtpeek.sha256
 
