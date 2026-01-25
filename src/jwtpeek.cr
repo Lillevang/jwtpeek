@@ -38,7 +38,7 @@ begin
   extraction = JWT.extract(text)
   if extraction.total > 1 && !extraction.bearer
     STDERR.puts("ℹ found #{extraction.total} JWTs in clipboard, using first")
-  elsif extaction.total > 1 && extraction.bearer
+  elsif extraction.total > 1 && extraction.bearer
     STDERR.puts("ℹ found #{extraction.total} JWTs in clipboard, using Bearer token")
   end
 
