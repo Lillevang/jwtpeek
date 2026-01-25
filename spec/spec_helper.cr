@@ -1,2 +1,3 @@
 require "spec"
-require "../src/jwtpeek"
+require "../src/jwt"
+require "../src/output"
