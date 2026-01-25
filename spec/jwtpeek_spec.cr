@@ -1,4 +1,5 @@
 require "./spec_helper"
+require "openssl"
 
 
 describe JWT do
@@ -59,6 +60,37 @@ describe JWT do
     expect_raises(Exception, "Invalid JWT format") do
       JWT.decode("a.b")
     end
+  end
+
+  it "verifies HS256 signatures" do
+    header_json = %({"alg":"HS256","typ":"JWT"})
+    payload_json = %({"sub":"123"})
+    secret = "supersecret"
+
+    header = Base64.urlsafe_encode(header_json)
+    payload = Base64.urlsafe_encode(payload_json)
+    signing_input = "#{header}.#{payload}"
+    signature = OpenSSL::HMAC.digest(:sha256, secret, signing_input)
+    token = [header, payload, Base64.urlsafe_encode(signature)].join(".")
+
+    JWT.verify_hs256(token, secret).should be_true
+    JWT.verify_hs256(token, "wrong").should be_false
+  end
+
+  it "verifies RS256 signatures with a public key" do
+    header_json = %({"alg":"RS256","typ":"JWT"})
+    payload_json = %({"sub":"123"})
+
+    header = Base64.urlsafe_encode(header_json)
+    payload = Base64.urlsafe_encode(payload_json)
+    signing_input = "#{header}.#{payload}"
+
+    rsa = OpenSSL::PKey::RSA.generate(2048)
+    signature = rsa.sign(OpenSSL::Digest.new("SHA256"), signing_input)
+    token = [header, payload, Base64.urlsafe_encode(signature)].join(".")
+    public_pem = rsa.public_key.to_pem
+
+    JWT.verify_pem(token, public_pem, "RS256").should be_true
   end
 end
 
