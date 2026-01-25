@@ -37,6 +37,10 @@ jobs:
         uses: crystal-lang/install-crystal@v1
         with:
           crystal: latest
+      - name: Run tests
+        run: |
+          set -euo pipefail
+          crystal spec
 
       - name: Build
         run: |
