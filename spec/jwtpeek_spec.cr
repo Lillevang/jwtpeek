@@ -101,3 +101,25 @@ it "returns Ok when exp is sufficiently in the future" do
     message.should eq("")
   end
 end
+
+describe Jwtpeek::UpdateChecker do
+  it "normalizes tag names with a leading v" do
+    Jwtpeek::UpdateChecker.normalize_version("v0.1.2").should eq("0.1.2")
+  end
+
+  it "reports update available when a newer version exists" do
+    result = Jwtpeek::UpdateChecker::Result.new("0.2.0", -1)
+    Jwtpeek::UpdateChecker.message(result).should contain("Update available")
+  end
+
+  it "reports up to date when versions match" do
+    result = Jwtpeek::UpdateChecker::Result.new(Jwtpeek::VERSION, 0)
+    Jwtpeek::UpdateChecker.message(result).should contain("up to date")
+  end
+
+  it "compares semantic versions" do
+    Jwtpeek::UpdateChecker.compare_versions("0.1.2", "0.1.3").should eq(-1)
+    Jwtpeek::UpdateChecker.compare_versions("1.0.0", "0.9.9").should eq(1)
+    Jwtpeek::UpdateChecker.compare_versions("0.1.2", "0.1.2").should eq(0)
+  end
+end

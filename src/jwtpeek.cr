@@ -3,8 +3,12 @@ require "option_parser"
 require "./clipboard"
 require "./jwt"
 require "./output"
+require "./update_checker"
+require "./version"
 
 copy = false
+check_update = false
+show_version = false
 
 OptionParser.parse do |parser|
   parser.banner = "Usage: jwtpeek [options]"
@@ -13,10 +17,33 @@ OptionParser.parse do |parser|
     copy = true
   end
 
+  parser.on("--version", "Show version") do
+    show_version = true
+  end
+
+  parser.on("--check-update", "Check for updates") do
+    check_update = true
+  end
+
   parser.on("-h", "--help", "Show this help") do
     puts parser
     exit
   end
+end
+
+if show_version
+  puts Jwtpeek::VERSION
+  exit
+end
+
+if check_update
+  begin
+    result = Jwtpeek::UpdateChecker.check
+    puts Jwtpeek::UpdateChecker.message(result)
+  rescue ex
+    puts "Unable to check for updates: #{ex.message}"
+  end
+  exit
 end
 
 def warn_line(msg : String)
