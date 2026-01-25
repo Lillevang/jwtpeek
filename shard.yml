@@ -1,0 +1,15 @@
+name: jwtpeek
+version: 0.1.0
+
+description: Clipboard-based JWT decoder for the terminal
+
+authors:
+  - Jeppe Lillevang Salling <jeppe.lillevang@gmail.com>
+
+targets:
+  jwtpeek:
+    main: src/jwtpeek.cr
+
+crystal: '>= 1.19.1'
+
+license: MIT
