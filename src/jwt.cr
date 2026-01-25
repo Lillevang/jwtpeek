@@ -3,12 +3,20 @@ require "base64"
 
 module JWT
   TOKEN_RE = /[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/
+  BEARER_RE = /(?:Authorization:\s*)?Bearer\s+(#{TOKEN_RE})/i
 
-  def self.extract(text : String) : String
-    match = text.match(TOKEN_RE)
-    token = match && match[0]?
+  record Extraction, token : String, total : Int32, bearer : Bool
+
+  def self.extract(text : String) : Extraction
+    tokens = text.scan(TOKEN_RE).map(&.[0])
+    if bearer_match = text.match(BEARER_RE)
+      return Extraction.new(bearer_match[1], tokens.size, true)
+    end
+
+    token = tokens.first?
     raise "No JWT found in clipboard" unless token
-    token
+
+    Extraction.new(token, tokens.size, false)
   end
 
   def self.decode(token : String)
