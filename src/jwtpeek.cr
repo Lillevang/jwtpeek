@@ -1,3 +1,4 @@
+require "colorize"
 require "option_parser"
 
 require "./clipboard"
@@ -39,10 +40,16 @@ end
 if check_update
   begin
     result = Jwtpeek::UpdateChecker.check
-    Jwtpeek::UpdateChecker.message(result)
+    msg = Jwtpeek::UpdateChecker.message(result)
+
+    if result.comparison < 0
+      puts msg.colorize(:yellow)
+    else
+      puts msg.colorize(:green)
+    end
   rescue ex
-    STDERR.puts "/home/jls/repos/tools/jwtpeek/src: 1: q: not found
-/home/jls/repos/tools/jwtpeek/src: 1: q: not foundUnable to check for updates: #{ex.message}"
+    STDERR.puts "Unable to check for updates: #{ex.message}".colorize(:red).bold
+    exit 1
   end
   exit
 end

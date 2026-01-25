@@ -1,4 +1,3 @@
-require "colorize"
 require "http/client"
 require "json"
 
@@ -27,11 +26,11 @@ module Jwtpeek
       Result.new(latest, compare_versions(VERSION, latest))
     end
 
-    def self.message(result : Result)
+    def self.message(result : Result) : String
       if result.comparison < 0
-        puts "Update available: v#{result.latest} (current v#{VERSION}).".colorize(:yellow)
+        "Update available: v#{result.latest} (current v#{VERSION})."
       else
-        puts "You're up to date (v#{VERSION}).".colorize(:green)
+        "You're up to date (v#{VERSION})."
       end
     end
 
