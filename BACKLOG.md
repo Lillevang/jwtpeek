@@ -39,7 +39,6 @@
   - PPA or hosted apt repo (Debian/Ubuntu)
 
 ### Quality of life
-- `--no-color`
 - Structured output mode (`--json`)
 - Exit codes for common states (expired, invalid, mismatch)
 

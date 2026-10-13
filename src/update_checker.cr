@@ -12,7 +12,7 @@ module Jwtpeek
     def self.check(client = HTTP::Client) : Result
       headers = HTTP::Headers{
         "User-Agent" => "jwtpeek/#{VERSION}",
-        "Accept"     => "application/vnd.github+json"
+        "Accept"     => "application/vnd.github+json",
       }
 
       response = client.get(API_URL, headers: headers)

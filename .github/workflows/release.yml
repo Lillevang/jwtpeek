@@ -1,66 +1,66 @@
+# Thin runner for the Taskfile. Every step below is a `task` command that
+# works identically on a laptop; GitHub Actions only supplies the machines
+# (so a macOS binary gets built too) and a token to attach the assets.
+# `task release` pushes the tag that triggers this.
 name: release
 
 on:
   push:
-    tags:
-      - "v*"
+    tags: ["v*"]
 
 permissions:
   contents: write
 
 jobs:
-  build-linux-x86_64:
-    runs-on: ubuntu-latest
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
 
     steps:
       - uses: actions/checkout@v4
-
-      - name: Verify VERSION matches git tag
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          TAG="${GITHUB_REF_NAME}"   # e.g. v0.1.2
-          TAG_VER="${TAG#v}"         # 0.1.2
-
-          FILE_VER="$(grep -Eo 'VERSION\s*=\s*"[^"]+"' src/version.cr | sed -E 's/.*"([^"]+)".*/\1/')"
-
-          echo "Tag version:  ${TAG_VER}"
-          echo "File version: ${FILE_VER}"
-
-          if [ "${TAG_VER}" != "${FILE_VER}" ]; then
-            echo "ERROR: tag (${TAG_VER}) does not match src/version.cr (${FILE_VER})"
-            exit 1
-          fi
 
       - name: Install Crystal
         uses: crystal-lang/install-crystal@v1
         with:
           crystal: latest
-      - name: Run tests
+
+      - name: Install Task
         run: |
-          set -euo pipefail
-          crystal spec
+          mkdir -p "$HOME/.local/bin"
+          sh -c "$(curl --fail --location https://taskfile.dev/install.sh)" -- -d -b "$HOME/.local/bin"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
-      - name: Build
-        run: |
-          set -euo pipefail
+      - run: task check-tag
+      - run: task verify
+      - run: task dist
 
-          crystal build src/jwtpeek.cr --release
-          sha256sum jwtpeek > jwtpeek.sha256
-
-          # Publish the same binary under two common arch names
-          cp jwtpeek jwtpeek-linux-amd64
-          cp jwtpeek jwtpeek-linux-x86_64
-
-          sha256sum jwtpeek-linux-amd64 > jwtpeek-linux-amd64.sha256
-          sha256sum jwtpeek-linux-x86_64 > jwtpeek-linux-x86_64.sha256
-
-      - name: Create GitHub Release and upload assets
-        uses: softprops/action-gh-release@v1
+      - uses: actions/upload-artifact@v4
         with:
-          files: |
-            jwtpeek-linux-amd64
-            jwtpeek-linux-amd64.sha256
-            jwtpeek-linux-x86_64
-            jwtpeek-linux-x86_64.sha256
+          name: dist-${{ matrix.os }}
+          path: dist/
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Task
+        run: |
+          mkdir -p "$HOME/.local/bin"
+          sh -c "$(curl --fail --location https://taskfile.dev/install.sh)" -- -d -b "$HOME/.local/bin"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - run: task publish
+        env:
+          GH_TOKEN: ${{ github.token }}

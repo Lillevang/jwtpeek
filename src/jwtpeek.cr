@@ -10,25 +10,38 @@ require "./version"
 copy = false
 check_update = false
 show_version = false
+use_stdin = false
+text_arg = nil
 
 OptionParser.parse do |parser|
-  parser.banner = "Usage: jwtpeek [options]"
+  parser.banner = <<-BANNER
+    Usage: jwtpeek [options] [TEXT]
 
-  parser.on("--copy", "Copy payload JSON to clipboard") do
-    copy = true
-  end
+    Finds the first JWT in the clipboard (or in TEXT / stdin), decodes it and
+    prints the header, payload and timing claims. Signatures are not verified.
 
-  parser.on("--version", "Show version") do
-    show_version = true
-  end
+    Options:
+    BANNER
 
-  parser.on("--check-update", "Check for updates") do
-    check_update = true
-  end
-
+  parser.on("-c", "--copy", "Copy the decoded payload JSON back to the clipboard") { copy = true }
+  parser.on("--stdin", "Read input from stdin instead of the clipboard") { use_stdin = true }
+  parser.on("--no-color", "Disable colored output (NO_COLOR is also respected)") { Colorize.enabled = false }
+  parser.on("--check-update", "Check GitHub for a newer release") { check_update = true }
+  parser.on("-v", "--version", "Show version") { show_version = true }
   parser.on("-h", "--help", "Show this help") do
     puts parser
     exit
+  end
+
+  parser.unknown_args do |args, after_dashes|
+    rest = args + after_dashes
+    text_arg = rest.join(" ") unless rest.empty?
+  end
+
+  parser.invalid_option do |flag|
+    STDERR.puts "jwtpeek: unknown option #{flag}"
+    STDERR.puts parser
+    exit 2
   end
 end
 
@@ -40,61 +53,59 @@ end
 if check_update
   begin
     result = Jwtpeek::UpdateChecker.check
-    msg = Jwtpeek::UpdateChecker.message(result)
-
-    if result.comparison < 0
-      puts msg.colorize(:yellow)
-    else
-      puts msg.colorize(:green)
-    end
+    message = Jwtpeek::UpdateChecker.message(result)
+    puts message.colorize(result.comparison < 0 ? :yellow : :green)
   rescue ex
-    STDERR.puts "Unable to check for updates: #{ex.message}".colorize(:red).bold
+    STDERR.puts "jwtpeek: unable to check for updates: #{ex.message}".colorize(:red).bold
     exit 1
   end
   exit
 end
 
-def warn_line(msg : String)
-  STDERR.puts
-  STDERR.puts(msg.colorize(:yellow).bold)
+def note(message : String)
+  STDERR.puts "ℹ #{message}"
 end
 
-def ok_line(msg : String)
+def warn(message : String)
   STDERR.puts
-  STDERR.puts(msg.colorize(:green).bold)
+  STDERR.puts "⚠ #{message}".colorize(:yellow).bold
 end
 
+def ok(message : String)
+  STDERR.puts
+  STDERR.puts "✔ #{message}".colorize(:green).bold
+end
 
 begin
+  text, source =
+    if arg = text_arg
+      {arg, "argument"}
+    elsif use_stdin
+      {STDIN.gets_to_end, "stdin"}
+    else
+      {Clipboard.read, "clipboard"}
+    end
+  raise "#{source.capitalize} is empty" if text.strip.empty?
 
-  text = Clipboard.read
-  raise "Clipboard is empty" if text.strip.empty?
-
-  extraction = JWT.extract(text)
-  if extraction.total > 1 && !extraction.bearer
-    STDERR.puts("ℹ found #{extraction.total} JWTs in clipboard, using first")
-  elsif extraction.total > 1 && extraction.bearer
-    STDERR.puts("ℹ found #{extraction.total} JWTs in clipboard, using Bearer token")
+  extraction = JWT.extract(text, source)
+  if extraction.total > 1
+    chosen = extraction.bearer ? "the Bearer token" : "the first one"
+    note "found #{extraction.total} JWTs in #{source}, using #{chosen}"
   end
 
   header, payload, signature = JWT.decode(extraction.token)
-
   Output.print(header, payload, signature)
 
-  status, msg = Output.expiry_status(payload)
-  case status
-  when Output::ExpStatus::Expired
-    warn_line("⚠  #{msg}")
-  when Output::ExpStatus::Soon
-    warn_line("⚠ #{msg}")
-  end
+  warn "alg is \"none\": this token is unsigned" if Output.unsigned?(header)
+
+  status, message = Output.expiry_status(payload)
+  warn message if status.expired? || status.soon?
 
   if copy
     Clipboard.write(Output.payload_json(payload))
-    ok_line("✔ payload copied to clipboard")
+    ok "payload copied to clipboard"
   end
-
 rescue ex
-  STDERR.puts("jwtpeek: #{ex.message}".colorize(:red).bold)
+  STDERR.puts "jwtpeek: #{ex.message}".colorize(:red).bold
   exit 1
 end
